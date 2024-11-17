@@ -31,10 +31,31 @@ types_conversion = {
 }
 
 
-class Obj ():
-    class_descriprion:str
+class ArgData ():
+    name:str
+    description:str
     type_:str
     
+    def __str__ (self):
+        return str(self.__dict__())
+
+
+class ConstructorData ():
+    description:str
+    name:str
+    args:dict[str,ArgData] = {}
+    
+    def __str__ (self):
+        return str(self.__dict__())
+
+
+class ClassData ():
+    descriprion:str
+    name:str
+    constructors:dict[str,ConstructorData] = {}
+
+    def __str__ (self):
+        return str(self.__dict__())
 
 
 def pascal_to_kebeb(camel_string:str) -> str:
