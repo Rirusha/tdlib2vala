@@ -34,22 +34,148 @@ HEADER = """/*
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-// THIS CODE WAS GENERATED, DON'T MODIFY IT"""
+// THIS FILE WAS GENERATED, DON'T MODIFY IT"""
  
-PROPERTY = '    public {0} {1} {{ get; set; {2}}}\n'
+PROPERTY = '    public {0} {1} {{ get; construct set; {2}}}\n'
+
+INTERNAL_PROPERTY = '    internal {0} {1} {{ get; set; {2}}}\n'
+
+ABSTRACT_CLASS_DEFINITION = 'public abstract class {0}.{1} : {2}'
 
 CLASS_DEFINITION = 'public class {0}.{1} : {2}'
 
+INTERNAL_CLASS_DEFINITION = 'internal class {0}.{1} : {2}'
+
 CLIENT_CLASS = 'public sealed class {namespace}.Client : Object'
 
-METHOD = '    public {type_}{return_type} {name} (\n        {argvn}\n    ) throws CommonError, BadStatusCodeError {{\n        {body}\n    }}'
-
-API_BASE = '    internal const string API_BASE = "{api_base}";\n\n'
-
-SOUP_WRAPPER = '    SoupWrapper soup_wrapper { get; default = new SoupWrapper (); }\n\n'
+METHOD = '    public {type_}{return_type} {name} ({argvn}) {errors}{{{body}}}'
 
 CONSTRUCT = '    construct {\n\n    }\n'
 
+CLIENT_ID = '    public int client_id { get; private set; }'
+
+REQ_MANAGER = '    internal RequestManager request_manager { get; set; }'
+
+CONSTRUCTOR = '    public {constructor_name} ({args}) {{\n        Object ({o_args});\n    }}\n'
+
 ARG = '{arg_type} {name}{default}'
 
-DEPRICATED = '    [Version (deprecated = true, deprecated_since = "{version}")]'
+CLIENT_FINAL = """
+    ~Client () {
+        if (request_manager != null) {
+            request_manager.stop ();
+        }
+    }
+"""
+
+INIT_BODY = """
+        client_id = TDJsonApi.create_client_id ();
+        request_manager = new RequestManager ();
+        request_manager.run.begin ();
+"""
+
+BODY = """
+        var obj = new {target_obj} ({args});
+        string json_response = "";
+
+        string json_string = yield TDJsoner.serialize_async (obj, Case.SNAKE);
+        
+        GLib.debug ("send %d %s", client_id, json_string);
+
+        ulong conid = request_manager.recieved.connect ((request_extra, response) => {{
+            if (request_extra == obj.tdlib_extra) {{
+                json_response = response;
+                Idle.add ({func_name}.callback);
+            }}    
+        }});
+        TDJsonApi.send (client_id, json_string);
+
+        yield;
+        SignalHandler.disconnect (request_manager, conid);
+
+        var jsoner = new TDJsoner (json_response, {{ "@type" }}, Case.SNAKE);
+        string tdlib_type = jsoner.deserialize_value ().get_string ();
+        
+        if (tdlib_type == "error") {{
+            jsoner = new TDJsoner (json_response, {{ "message" }}, Case.SNAKE);
+            throw new BadStatusCodeError.COMMON (jsoner.deserialize_value ().get_string ());
+        }}
+
+        jsoner = new TDJsoner (json_response, null, Case.SNAKE);
+
+        {return_type} out_obj;
+        switch (tdlib_type) {{
+{cases}
+            default:
+                assert_not_reached ();
+        }}
+
+        return out_obj;
+"""
+
+CASE = '            case "{case}":\n                out_obj = ({return_type}) jsoner.deserialize_object (typeof ({return_type}));\n                break;'
+
+SYNC_BODY = """
+        var obj = new {target_obj} ({args});
+
+        string json_string = TDJsoner.serialize (obj, Case.SNAKE);
+
+        GLib.debug ("execute %s", json_string);
+
+        string json_response = TDJsonApi.execute (json_string);
+        
+        var jsoner = new TDJsoner (json_response, {{ "@type" }}, Case.SNAKE);
+        string tdlib_type = jsoner.deserialize_value ().get_string ();
+        
+        if (tdlib_type == "error") {{
+            jsoner = new TDJsoner (json_response, {{ "message" }}, Case.SNAKE);
+            throw new BadStatusCodeError.COMMON (jsoner.deserialize_value ().get_string ());
+        }}
+
+        jsoner = new TDJsoner (json_response, null, Case.SNAKE);
+
+        {return_type} out_obj;
+        switch (tdlib_type) {{
+{cases}
+            default:
+                assert_not_reached ();
+        }}
+
+        return out_obj;
+"""
+
+REQ_MANAGER_CLASS = """
+internal sealed class TDLib.RequestManager : Object {
+
+    public signal void recieved (string request_extra, string response_json);
+
+    bool keep_running = true;
+    MainLoop? ml = null;
+
+    public async void run () {
+        while (keep_running) {
+            string? json_response = TDJsonApi.receive (0.05);
+            if (json_response != null) {
+                TDJsoner jsoner;
+                try {
+                    jsoner = new TDJsoner (json_response, { "@extra" }, Case.SNAKE);
+                } catch (JsonError e) {
+                    warning ("%s: %s", e.message, json_response);
+                    continue;
+                }
+                
+                string tdlib_extra = jsoner.deserialize_value ().get_string ();
+
+                recieved (tdlib_extra, json_response);
+            }
+
+            Idle.add (run.callback, Priority.LOW);
+            yield;
+        }
+    }
+
+    public void stop () {
+        keep_running = false;
+    }
+}
+"""

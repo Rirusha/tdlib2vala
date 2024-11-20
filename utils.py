@@ -17,7 +17,7 @@
 
 from datetime import datetime
 
-from structures import ARG, HEADER, METHOD, DEPRICATED
+from structures import ARG, CASE, HEADER, INIT_BODY, METHOD
 import global_args
 
 types_conversion = {
@@ -33,30 +33,74 @@ types_conversion = {
 
 class ArgData ():
     name:str
-    description:str
+    description:list[str]
     type_:str
+    tdlib_value:str|None
+    nullable:bool
     
-    def __str__ (self):
-        return str(self.__dict__())
+    def __init__(self):
+        self.name = ''
+        self.description = []
+        self.type_ = ''
+        self.nullable = False
+        self.tdlib_value = None
 
 
 class ConstructorData ():
-    description:str
     name:str
-    args:dict[str,ArgData] = {}
+    description:list[str]
+    args:dict[str,ArgData]
     
-    def __str__ (self):
-        return str(self.__dict__())
+    def __init__(self):
+        self.name = ''
+        self.description = []
+        self.args = {}
 
 
 class ClassData ():
-    descriprion:str
     name:str
-    constructors:dict[str,ConstructorData] = {}
+    description:list[str]
+    constructors:dict[str,ConstructorData]
+    
+    def __init__(self):
+        self.name = ''
+        self.description = []
+        self.constructors = {}
+        
+        
+class FuncData ():
+    name:str
+    constructor:ConstructorData
+    return_type:str
+    can_be_sync:bool
+    
+    def __init__(self):
+        self.name = ''
+        self.constructor = None
+        self.return_type = ''
+        self.can_be_sync = False
 
-    def __str__ (self):
-        return str(self.__dict__())
 
+def format_args_const(args:list[ArgData]) -> list[str]:
+    out:list[str] = []
+    for arg in args:
+        out.append(f'{arg.type_}{'?' if arg.nullable else ''} {arg.name}')
+
+    return out
+
+def format_args_desc(args:list[ArgData]) -> list[str]:
+    out:list[str] = []
+    for arg in args:
+        out.append(f'@param {arg.name} {" ".join(arg.description)}')
+
+    return out
+    
+def format_args_obj(args:list[ArgData]) -> list[str]:
+    out:list[str] = []
+    for arg in args:
+        out.append(f'{arg.name}: {arg.name if not arg.tdlib_value else arg.tdlib_value}')
+
+    return out
 
 def pascal_to_kebeb(camel_string:str) -> str:
     builder = []
@@ -68,28 +112,99 @@ def pascal_to_kebeb(camel_string:str) -> str:
 
     return ''.join(builder)
 
-def format_description(description:list[str]|str) -> str:
-    out = ['    /**']
+def camel_to_kebeb(camel_string:str) -> str:
+    return pascal_to_kebeb(camel_to_pascal(camel_string))
 
-    if type(description) is str:
-        out.append(f'     * {description}')
-    elif type(description) is list:
-        for line in description:
-            out.append(f'     * {line}')
-    else:
-        raise TypeError()
+def camel_to_snake(camel_string:str) -> str:
+    builder = []
+    for (i, char) in enumerate(camel_string):
+        if char.isupper() and i != 0:
+            builder.append("_")
 
-    out.append('     */')
+        builder.append(char.lower())
+
+    return ''.join(builder)
+
+def snake_to_pascal(snake_string:str) -> str:
+    return snake_string.replace('_', ' ').title().replace(' ', '')
+
+def camel_to_pascal(camel_string:str) -> str:
+    return camel_string[0].upper() + camel_string[1:]
+
+def snake_to_kebab(snake_string:str) -> str:
+    return snake_string.replace('_', '-')
+
+def resolve_type (type_:str) -> str:
+    if type_ in types_conversion:
+        return types_conversion[type_]
+    
+    if type_.startswith('vector'):
+        return f'Gee.ArrayList<{resolve_type(type_.replace('vector', '').strip('<>'))}?>'
+
+    return camel_to_pascal(type_)
+
+
+def escape_name(type_:str) -> str:
+    if type_ == 'object_type' or type_ == 'id':
+        return type_ + '_'
+
+    return type_
+
+def format_description(description:list[str], tab_c:int = 1) -> str:
+    MAX_SIZE = 70
+    
+    new_desc:list[str] = []
+    for line in description:
+        new_desc_line = ''
+
+        lines_splitted = line.split(' ')
+        for line_splitted in lines_splitted:
+            if len(new_desc_line) + len(line_splitted) <= MAX_SIZE:
+                new_desc_line += line_splitted + ' '
+            else:
+                new_desc.append(new_desc_line.strip())
+                new_desc_line = line_splitted + ' '
+
+        new_desc.append(new_desc_line.strip())
+    description = new_desc
+    
+    out = ['    ' * tab_c + '/**']
+
+    for line in description:
+        out.append('    ' * tab_c + f' * {line}')
+
+    out.append('    ' * tab_c + ' */')
 
     return '\n'.join(out)
 
-def format_method(return_type:str, name:str, argv:list[str], body:list[str], async_:bool, depricated_version:str|None):
+def format_cases(constructor_name:str, return_type:str) -> str:
+    return CASE.format(
+        return_type=return_type,
+        case=constructor_name
+    )
+
+def format_method(return_type:str, name:str, argv:list[str], body:list[str], async_:bool, errors:list[str] = ['BadStatusCodeError']):
+    arg = ',\n        '.join(argv)
+    b = '\n        '.join(body)
+    e = f'throws {', '.join(errors)} ' if len(errors) > 0 else ''
+
     return METHOD.format(
         type_='async ' if async_ else '',
         return_type=return_type,
-        name=name,
-        argvn=',\n        '.join(argv),
-        body='\n        '.join(body)
+        name=name + '_sync' if not async_ else name,
+        argvn='\n        ' + arg + '\n    ' if len(argv) > 0 else '',
+        body=body + '    ',
+        errors=e
+    )
+    
+def format_init_method():
+    return METHOD.format(
+        type_='',
+        return_type='void',
+        name='init',
+        argvn='',
+        body=INIT_BODY + '    ',
+        errors=''
     )
 
 def format_header () -> str:
