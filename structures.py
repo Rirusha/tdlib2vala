@@ -60,6 +60,12 @@ CONSTRUCTOR = '    public {constructor_name} ({args}) {{\n        Object ({o_arg
 
 ARG = '{arg_type} {name}{default}'
 
+CLIENT_CONSTR = """
+    public Client (double timeout = 1.0) {
+        Object (timeout: timeout);
+    }
+"""
+
 CLIENT_FINAL = """
     ~Client () {
         if (request_manager != null) {
@@ -70,11 +76,13 @@ CLIENT_FINAL = """
 
 INIT_BODY = """
         client_id = TDJsonApi.create_client_id ();
-        request_manager = new RequestManager ();
+        request_manager = new RequestManager (timeout);
         request_manager.run.begin ();
 """
 
 BODY = """
+        try {{
+
         var obj = new {target_obj} ({args});
         string json_response = "";
 
@@ -86,7 +94,7 @@ BODY = """
             if (request_extra == obj.tdlib_extra) {{
                 json_response = response;
                 Idle.add ({func_name}.callback);
-            }}    
+            }}
         }});
         TDJsonApi.send (client_id, json_string);
 
@@ -98,7 +106,7 @@ BODY = """
         
         if (tdlib_type == "error") {{
             jsoner = new TDJsoner (json_response, {{ "message" }}, Case.SNAKE);
-            throw new BadStatusCodeError.COMMON (jsoner.deserialize_value ().get_string ());
+            throw new TDLibError.COMMON (jsoner.deserialize_value ().get_string ());
         }}
 
         jsoner = new TDJsoner (json_response, null, Case.SNAKE);
@@ -109,13 +117,19 @@ BODY = """
             default:
                 assert_not_reached ();
         }}
-
+        
         return out_obj;
+
+        }} catch (JsonError e) {{
+            throw new TDLibError.COMMON ("Error while parsing json");
+        }}
 """
 
 CASE = '            case "{case}":\n                out_obj = ({return_type}) jsoner.deserialize_object (typeof ({return_type}));\n                break;'
 
 SYNC_BODY = """
+        try {{
+
         var obj = new {target_obj} ({args});
 
         string json_string = TDJsoner.serialize (obj, Case.SNAKE);
@@ -129,7 +143,7 @@ SYNC_BODY = """
         
         if (tdlib_type == "error") {{
             jsoner = new TDJsoner (json_response, {{ "message" }}, Case.SNAKE);
-            throw new BadStatusCodeError.COMMON (jsoner.deserialize_value ().get_string ());
+            throw new TDLibError.COMMON (jsoner.deserialize_value ().get_string ());
         }}
 
         jsoner = new TDJsoner (json_response, null, Case.SNAKE);
@@ -140,31 +154,39 @@ SYNC_BODY = """
             default:
                 assert_not_reached ();
         }}
-
+        
         return out_obj;
+
+        }} catch (JsonError e) {{
+            throw new TDLibError.COMMON ("Error while parsing json");
+        }}
 """
 
 REQ_MANAGER_CLASS = """
 internal sealed class TDLib.RequestManager : Object {
 
+    public double timeout { get; set; }
+
     public signal void recieved (string request_extra, string response_json);
 
     bool keep_running = true;
-    MainLoop? ml = null;
+
+    public RequestManager (double timeout) {
+        Object (timeout: timeout);
+    }
 
     public async void run () {
         while (keep_running) {
-            string? json_response = TDJsonApi.receive (0.05);
+            string? json_response = TDJsonApi.receive (timeout);
             if (json_response != null) {
-                TDJsoner jsoner;
+                string tdlib_extra;
                 try {
-                    jsoner = new TDJsoner (json_response, { "@extra" }, Case.SNAKE);
+                    TDJsoner jsoner = new TDJsoner (json_response, { "@extra" }, Case.SNAKE);
+                    tdlib_extra = jsoner.deserialize_value ().get_string ();
                 } catch (JsonError e) {
                     warning ("%s: %s", e.message, json_response);
                     continue;
                 }
-                
-                string tdlib_extra = jsoner.deserialize_value ().get_string ();
 
                 recieved (tdlib_extra, json_response);
             }

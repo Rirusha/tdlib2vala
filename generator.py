@@ -37,14 +37,15 @@ DESCRIPTION_TAG = TAG_PREFIX + 'description'
 # author = sys.argv[1]
 # target_path = sysys.argv[2]
 author = 'Vladimir Vaskov'
-target_path = '/home/rirusha/Downloads/doc/lib'
+target_path = '/home/rirusha/Projects/libvalagram'
+target_path_lib = os.path.join(target_path, 'lib')
 
 td_api_url = 'https://raw.githubusercontent.com/tdlib/td/refs/heads/master/td/generate/scheme/td_api.tl'
 namespace = 'TDLib'
 
 global_args.author = author
 global_args.namespace = namespace
-global_args.target_path = target_path
+global_args.target_path = target_path_lib
 
 td_api_doc_lines = requests.get(td_api_url).text.split('\n')
 
@@ -260,7 +261,7 @@ create_req_manager()
 
 lib_file_names = os.listdir('lib')
 for file_name in lib_file_names:
-    shutil.copy(os.path.join('lib', file_name), global_args.target_path)
+    shutil.copy(os.path.join('lib', file_name), target_path_lib)
 vapi_file_names = os.listdir('vapi')
 for file_name in vapi_file_names:
-    shutil.copy(os.path.join('vapi', file_name), global_args.target_path)
+    shutil.copy(os.path.join('vapi', file_name), os.path.join(target_path, 'vapi'))

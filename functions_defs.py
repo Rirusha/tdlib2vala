@@ -1,6 +1,6 @@
 import os
 import global_args
-from structures import CASE, CLIENT_FINAL, PROPERTY, SYNC_BODY, BODY, CLIENT_CLASS, CLIENT_ID, INIT_BODY, METHOD, REQ_MANAGER
+from structures import CASE, CLIENT_CONSTR, CLIENT_FINAL, PROPERTY, SYNC_BODY, BODY, CLIENT_CLASS, CLIENT_ID, INIT_BODY, METHOD, REQ_MANAGER
 from utils import ClassData, FuncData, camel_to_pascal, format_args_const, format_args_desc, format_description, format_header, format_init_method, format_method, snake_to_pascal
 
 
@@ -19,13 +19,20 @@ def create_functions(func_datas:list[FuncData], class_datas:dict[str,ClassData])
         ))
         
         file.write('\n')
-        file.write (CLIENT_ID);
+        file.write(CLIENT_ID);
         file.write('\n\n')
-        file.write (REQ_MANAGER);
+        file.write(REQ_MANAGER);
         file.write('\n\n')
+        
+        file.write(PROPERTY.format(
+            'double',
+            'timeout',
+            ''
+        ))
 
         file.write('\n')
-        file.write(format_description(['@param with_loop Create ``MainLoop`` instance or not']))
+        file.write(format_description(['@param timeout']))
+        file.write(CLIENT_CONSTR);
         file.write(CLIENT_FINAL);
         
         file.write('\n')

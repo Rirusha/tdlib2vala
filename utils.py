@@ -183,7 +183,7 @@ def format_cases(constructor_name:str, return_type:str) -> str:
         case=constructor_name
     )
 
-def format_method(return_type:str, name:str, argv:list[str], body:list[str], async_:bool, errors:list[str] = ['BadStatusCodeError']):
+def format_method(return_type:str, name:str, argv:list[str], body:list[str], async_:bool, errors:list[str] = ['TDLibError']):
     arg = ',\n        '.join(argv)
     b = '\n        '.join(body)
     e = f'throws {', '.join(errors)} ' if len(errors) > 0 else ''
