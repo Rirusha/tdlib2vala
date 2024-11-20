@@ -87,7 +87,7 @@ BODY = """
         string json_response = "";
 
         string json_string = yield TDJsoner.serialize_async (obj, Case.SNAKE);
-        
+
         GLib.debug ("send %d %s", client_id, json_string);
 
         ulong conid = request_manager.recieved.connect ((request_extra, response) => {{
@@ -103,7 +103,7 @@ BODY = """
 
         var jsoner = new TDJsoner (json_response, {{ "@type" }}, Case.SNAKE);
         string tdlib_type = jsoner.deserialize_value ().get_string ();
-        
+
         if (tdlib_type == "error") {{
             jsoner = new TDJsoner (json_response, {{ "message" }}, Case.SNAKE);
             throw new TDLibError.COMMON (jsoner.deserialize_value ().get_string ());
@@ -117,7 +117,7 @@ BODY = """
             default:
                 assert_not_reached ();
         }}
-        
+
         return out_obj;
 
         }} catch (JsonError e) {{
@@ -137,10 +137,10 @@ SYNC_BODY = """
         GLib.debug ("execute %s", json_string);
 
         string json_response = TDJsonApi.execute (json_string);
-        
+
         var jsoner = new TDJsoner (json_response, {{ "@type" }}, Case.SNAKE);
         string tdlib_type = jsoner.deserialize_value ().get_string ();
-        
+
         if (tdlib_type == "error") {{
             jsoner = new TDJsoner (json_response, {{ "message" }}, Case.SNAKE);
             throw new TDLibError.COMMON (jsoner.deserialize_value ().get_string ());
@@ -154,7 +154,7 @@ SYNC_BODY = """
             default:
                 assert_not_reached ();
         }}
-        
+
         return out_obj;
 
         }} catch (JsonError e) {{

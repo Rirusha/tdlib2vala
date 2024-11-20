@@ -92,4 +92,4 @@ def create_functions(func_datas:list[FuncData], class_datas:dict[str,ClassData])
             ))
             file.write('\n')
             
-        file.write('}')
+        file.write('}\n')
