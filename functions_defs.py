@@ -1,6 +1,6 @@
 import os
 import global_args
-from structures import CASE, CLIENT_CONSTR, CLIENT_FINAL, PROPERTY, SYNC_BODY, BODY, CLIENT_CLASS, CLIENT_ID, INIT_BODY, METHOD, REQ_MANAGER
+from structures import CASE, CLIENT_CONSTR, CLIENT_FINAL, PROPERTY, REGULAR_PROPERTY, SYNC_BODY, BODY, CLIENT_CLASS, CLIENT_ID, INIT_BODY, METHOD, REQ_MANAGER
 from utils import ClassData, FuncData, camel_to_pascal, format_args_const, format_args_desc, format_description, format_header, format_init_method, format_method, snake_to_pascal
 
 
@@ -9,6 +9,11 @@ def create_functions(func_datas:list[FuncData], class_datas:dict[str,ClassData])
 
     if not os.path.exists(global_args.target_path):
         os.makedirs(global_args.target_path)
+        
+    all_constructors = []
+    for class_data in class_datas.values():
+        for constructor in class_data.constructors.values():
+            all_constructors.append(constructor.name)
 
     with open(path, 'w') as file:
         file.write(format_header())
@@ -17,7 +22,7 @@ def create_functions(func_datas:list[FuncData], class_datas:dict[str,ClassData])
         file.write((CLIENT_CLASS + ' {{\n').format(
             namespace=global_args.namespace
         ))
-        
+
         file.write('\n')
         file.write(CLIENT_ID);
         file.write('\n\n')
@@ -29,11 +34,24 @@ def create_functions(func_datas:list[FuncData], class_datas:dict[str,ClassData])
             'timeout',
             ''
         ))
+        file.write('\n')
+        file.write(REGULAR_PROPERTY.format(
+            'string',
+            'version',
+            ''
+        ))
+        file.write('    public signal void update_recieved (Update update);')
 
         file.write('\n')
         file.write(format_description(['@param timeout']))
         file.write(CLIENT_CONSTR);
         file.write(CLIENT_FINAL);
+        
+        file.write('\n')
+        file.write('    static construct {{\n        {0}\n    }}'.format(
+            '\n        '.join(list(map(lambda x: f'typeof ({camel_to_pascal(x)}).ensure ();', all_constructors)))
+        ))
+        file.write('\n')
         
         file.write('\n')
         file.write(format_description(['Init client: create request manager and set client_id']))
@@ -54,7 +72,7 @@ def create_functions(func_datas:list[FuncData], class_datas:dict[str,ClassData])
                     return_type=camel_to_pascal(constructor),
                     case=constructor,
                 ))
-            
+
             if func_data.can_be_sync:
                 file.write('\n')
                 file.write(descrition)

@@ -204,7 +204,7 @@ def format_init_method():
         name='init',
         argvn='',
         body=INIT_BODY + '    ',
-        errors=''
+        errors='throws TDLibError '
     )
 
 def format_header () -> str:

@@ -257,7 +257,7 @@ create_td_object()
 for func_data in func_datas.values():
     create_func_object(func_data)
 create_functions(list(func_datas.values()), class_datas)
-create_req_manager()
+create_req_manager(class_datas)
 
 lib_file_names = os.listdir('lib')
 for file_name in lib_file_names:
