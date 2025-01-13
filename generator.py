@@ -16,6 +16,7 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+from datetime import datetime
 import os
 import shutil
 import requests
@@ -258,7 +259,10 @@ create_req_manager(class_datas)
 
 lib_file_names = os.listdir('lib')
 for file_name in lib_file_names:
-    shutil.copy(os.path.join('lib', file_name), target_path_lib)
+    with open(os.path.join('lib', file_name), 'r') as rfile:
+        with open(os.path.join(target_path_lib, file_name), 'w') as wfile:
+            wfile.writelines(map(lambda x: x.replace('@YEAR@', str(datetime.now().year)), rfile.readlines()))
+
 vapi_file_names = os.listdir('vapi')
 for file_name in vapi_file_names:
     shutil.copy(os.path.join('vapi', file_name), os.path.join(target_path, 'vapi'))
