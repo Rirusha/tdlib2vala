@@ -15,7 +15,9 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+
 from datetime import datetime
+import re
 
 from structures import ARG, CASE, HEADER, INIT_BODY, METHOD
 import global_args
@@ -134,6 +136,9 @@ def camel_to_pascal(camel_string:str) -> str:
 def snake_to_kebab(snake_string:str) -> str:
     return snake_string.replace('_', '-')
 
+def snake_to_camel(snake_string:str) -> str:
+    return snake_to_pascal(snake_string)[0].lower() + snake_to_pascal(snake_string)[1:]
+
 def resolve_type (type_:str) -> str:
     if type_ in types_conversion:
         return types_conversion[type_]
@@ -151,6 +156,8 @@ def escape_name(type_:str) -> str:
     return type_
 
 def format_description(description:list[str], tab_c:int = 1) -> str:
+    from common import symbol_translation, pats
+
     MAX_SIZE = 70
     
     new_desc:list[str] = []
@@ -158,7 +165,23 @@ def format_description(description:list[str], tab_c:int = 1) -> str:
         new_desc_line = ''
 
         lines_splitted = line.split(' ')
+        previous_was_special = False
+        
         for line_splitted in lines_splitted:
+            if '//' in line_splitted:
+                line_splitted = re.sub(r'(?:[a-zA-Z{}_]*):\/\/[^\s)]*', r'[[\g<0>]]', line_splitted).replace('.]]', ']].').replace('{', '(').replace('}', ')')
+
+            # Need to filtrate short words (message, call, etc...)
+            if not previous_was_special:
+                for symbol, trans in symbol_translation['_'].items():
+                    if symbol not in pats:
+                        pats[symbol] = re.compile(fr'^[^a-zA-Z]*{symbol}[^a-zA-Z]*$')
+
+                    if re.match(pats[symbol], line_splitted):
+                        line_splitted = line_splitted.replace(line_splitted, '{{@link Client.{a}}}'.format(a=trans))
+
+            previous_was_special = line_splitted.startswith('@')
+
             if len(new_desc_line) + len(line_splitted) <= MAX_SIZE:
                 new_desc_line += line_splitted + ' '
             else:
@@ -167,7 +190,7 @@ def format_description(description:list[str], tab_c:int = 1) -> str:
 
         new_desc.append(new_desc_line.strip())
     description = new_desc
-    
+
     out = ['    ' * tab_c + '/**']
 
     for line in description:

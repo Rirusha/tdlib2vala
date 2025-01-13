@@ -43,7 +43,7 @@ def create_functions(func_datas:list[FuncData], class_datas:dict[str,ClassData])
         file.write('    public signal void update_recieved (Update update);')
 
         file.write('\n')
-        file.write(format_description(['@param timeout']))
+        file.write(format_description(['@param timeout Base timeout']))
         file.write(CLIENT_CONSTR);
         file.write(CLIENT_FINAL);
         

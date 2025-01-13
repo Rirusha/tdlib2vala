@@ -98,7 +98,7 @@ def create_object (class_data:ClassData):
                 file.write(format_description(arg.description))
                 file.write('\n')
                 file.write(PROPERTY.format(
-                    f'new {at}' if arg.name == 'message' and class_data.name != 'Error' else at,
+                    f'new {at}' if (arg.name == 'message' or arg.name == 'code') and class_data.name != 'Error' else at,
                     arg.name,
                     f'default = new {arg.type_} (); ' if arg.type_.startswith('Gee.ArrayList') else ''
                 ))
@@ -149,10 +149,12 @@ def create_object (class_data:ClassData):
                 file.write('\n')
 
                 for arg in constructor.args.values():
+                    at = arg.type_ if not arg.nullable else arg.type_ + '?'
+
                     file.write(format_description(arg.description))
                     file.write('\n')
                     file.write(PROPERTY.format(
-                        arg.type_ if not arg.nullable else arg.type_ + '?',
+                        f'new {at}' if (arg.name == 'message' or arg.name == 'code') and class_data.name != 'Error' else at,
                         arg.name,
                         f'default = new {arg.type_} (); ' if arg.type_.startswith('Gee.ArrayList') else ''
                     ))
@@ -194,7 +196,7 @@ def create_func_object(func_data:FuncData):
 
         file.write(format_description(constructor.description, 0))
         file.write('\n')
-        file.write((INTERNAL_CLASS_DEFINITION + ' {{\n').format(
+        file.write((CLASS_DEFINITION + ' {{\n').format(
             global_args.namespace,
             camel_to_pascal(constructor.name),
             'TDObject'

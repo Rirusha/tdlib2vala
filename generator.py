@@ -16,6 +16,7 @@
 #
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+from threading import Thread
 from datetime import datetime
 import os
 import shutil
@@ -24,7 +25,8 @@ import sys
 from functions_defs import create_functions
 from object_defs import create_func_object, create_object, create_td_object
 from req_manager import create_req_manager
-from utils import ArgData, ConstructorData, ClassData, FuncData, camel_to_snake, escape_name, escape_name, resolve_type, types_conversion
+from utils import ArgData, ConstructorData, ClassData, FuncData, camel_to_pascal, camel_to_snake, escape_name, escape_name, resolve_type, snake_to_camel, types_conversion
+from common import class_datas, func_datas, symbol_translation
 
 import global_args
 
@@ -45,7 +47,9 @@ global_args.author = author
 global_args.namespace = namespace
 global_args.target_path = target_path_lib
 
+print('Downloading td_api.tl...')
 td_api_doc_lines = requests.get(td_api_url).text.split('\n')
+print('Done')
 
 td_api_doc_lines_format:list[str] = []
 
@@ -55,8 +59,6 @@ for td_api_doc_line in td_api_doc_lines:
 
 is_start:bool = False
 is_finctions:bool = False
-class_datas:dict[str,ClassData] = {}
-func_datas:dict[str,FuncData] = {}
 
 last_constructor:ConstructorData = None
 last_description_entity = None
@@ -238,10 +240,15 @@ for line in td_api_doc_lines_format:
 
 for class_data in class_datas.values():
     class_data.name = escape_name(class_data.name)
-    
+
     for constructor in class_data.constructors.values():
         for arg in constructor.args.values():
             arg.name = escape_name(arg.name)
+
+        if 'A' not in symbol_translation:
+            symbol_translation['A'] = {}
+
+        symbol_translation['A'][constructor.name] = camel_to_pascal(constructor.name)
 
 for func_data in func_datas.values():
     escape_name(func_data.return_type)
@@ -249,11 +256,24 @@ for func_data in func_datas.values():
     for arg in func_data.constructor.args.values():
         arg.name = escape_name(arg.name)
 
-for class_data in class_datas.values():
+    if '_' not in symbol_translation:
+        symbol_translation['_'] = {}
+    
+    symbol_translation['_'][snake_to_camel(func_data.name)] = func_data.name
+
+for sym1, sym2 in symbol_translation.items():
+    print(f'{sym1} = {sym2}')
+
+pre_len = len(class_datas.values())
+for i, class_data in enumerate(class_datas.values()):
     create_object(class_data)
+    print(f"Gen class_data: {i + 1}/{pre_len}")
+
 create_td_object()
-for func_data in func_datas.values():
+pre_len = len(func_datas.values())
+for i, func_data in enumerate(func_datas.values()):
     create_func_object(func_data)
+    print(f"Gen func_data: {i + 1}/{pre_len}")
 create_functions(list(func_datas.values()), class_datas)
 create_req_manager(class_datas)
 

@@ -80,7 +80,11 @@ INIT_BODY = """
         client_id = TDJsonApi.create_client_id ();
         request_manager = new RequestManager (this, timeout);
         request_manager.run.begin (() => {
-            version = ((OptionValueString) get_option_sync ("version")).value;  
+            try {{
+                version = ((OptionValueString) get_option_sync ("version")).value;
+            }} catch (TDLibError.COMMON e) {{
+                warning ("Error while getting init version: %s", e.message);
+            }}
         });
 """
 
@@ -179,12 +183,21 @@ internal sealed class TDLib.RequestManager : Object {{
                     recieved (tdlib_extra, json_response);
 
                 }} catch (JsonError e) {{
-                    TDJsoner jsoner = new TDJsoner (json_response, {{ "@type" }}, Case.SNAKE);
-                    string tdlib_type = jsoner.deserialize_value ().get_string ();
+                    try {{
+                        TDJsoner jsoner = new TDJsoner (json_response, {{ "@type" }}, Case.SNAKE);
+                        string tdlib_type = jsoner.deserialize_value ().get_string ();
 
-                    if (tdlib_type.has_prefix ("update")) {{
-                        client.update_recieved (deserialize_update (json_response));
-                    }} else {{
+                        if (tdlib_type.has_prefix ("update")) {{
+                            var update = deserialize_update (json_response);
+                            if (update != null) {{
+                                client.update_recieved (update);
+                            }}
+
+                        }} else {{
+                            warning ("%s: %s", e.message, json_response);
+                        }}
+
+                    }} catch (TDLib.JsonError e) {{
                         warning ("%s: %s", e.message, json_response);
                     }}
                 }}
@@ -195,9 +208,15 @@ internal sealed class TDLib.RequestManager : Object {{
         }}
     }}
 
-    public Update deserialize_update (string json_string) {{
-        var jsoner = new TDJsoner (json_string, null, Case.SNAKE);
-        return (Update) jsoner.deserialize_object (null);
+    public Update? deserialize_update (string json_string) {{
+        try {{
+            var jsoner = new TDJsoner (json_string, null, Case.SNAKE);
+            return (Update) jsoner.deserialize_object (null);
+
+        }} catch (TDLib.JsonError e) {{
+            warning ("%s: %s", e.message, json_string);
+            return null;
+        }}
     }}
 
     public void stop () {{
