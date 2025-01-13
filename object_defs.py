@@ -91,19 +91,20 @@ def create_object (class_data:ClassData):
                 'TDObject' if class_data.name == 'Error' else 'Error'
             ))
 
-            file.write('\n')
-
             for arg in constructor.args.values():
+                at = arg.type_ if not arg.nullable else arg.type_ + '?'
+
+                file.write('\n')
                 file.write(format_description(arg.description))
                 file.write('\n')
                 file.write(PROPERTY.format(
-                    arg.type_ if not arg.nullable else arg.type_ + '?',
+                    f'new {at}' if arg.name == 'message' and class_data.name != 'Error' else at,
                     arg.name,
                     f'default = new {arg.type_} (); ' if arg.type_.startswith('Gee.ArrayList') else ''
                 ))
-                file.write('\n')
 
             if class_data.name != 'Error':
+                file.write('\n')
                 type_arg = ArgData()
                 type_arg.name = 'tdlib_type'
                 type_arg.tdlib_value = f'"{constructor.name}"'
