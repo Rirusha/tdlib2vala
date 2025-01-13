@@ -33,11 +33,8 @@ COMMENT_PREFIX = '//'
 CLASS_TAG =  TAG_PREFIX + 'class'
 DESCRIPTION_TAG = TAG_PREFIX + 'description'
 
-
-# author = sys.argv[1]
-# target_path = sysys.argv[2]
-author = 'Vladimir Vaskov'
-target_path = '/home/rirusha/Projects/libvalagram'
+author = sys.argv[1]
+target_path = sys.argv[2]
 target_path_lib = os.path.join(target_path, 'lib')
 
 td_api_url = 'https://raw.githubusercontent.com/tdlib/td/refs/heads/master/td/generate/scheme/td_api.tl'
